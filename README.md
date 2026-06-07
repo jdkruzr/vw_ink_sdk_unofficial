@@ -143,4 +143,5 @@ The working sequence is:
 The sample APK will be under `sample/build/outputs/apk/debug/`.
 
 The sample includes controls for clearing the bitmap, resetting overlay counters,
-and cycling render batch size between 1, 2, and 4.
+cycling render batch size between 1, 2, and 4, and cycling through local renderer
+approximations of the Viwoods/Wisky pen types found in WiNote/Wread resources.

@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 public final class MainActivity extends Activity {
     private SampleInkView inkView;
     private Button batchButton;
+    private Button toolButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +28,7 @@ public final class MainActivity extends Activity {
 
         Button clearButton = new Button(this);
         clearButton.setText("Clear");
+        clearButton.setTextSize(12f);
         clearButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -38,6 +40,7 @@ public final class MainActivity extends Activity {
 
         Button resetButton = new Button(this);
         resetButton.setText("Reset");
+        resetButton.setTextSize(12f);
         resetButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -48,6 +51,7 @@ public final class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         batchButton = new Button(this);
+        batchButton.setTextSize(12f);
         updateBatchButton();
         batchButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -57,6 +61,19 @@ public final class MainActivity extends Activity {
             }
         });
         toolbar.addView(batchButton, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        toolButton = new Button(this);
+        toolButton.setTextSize(12f);
+        updateToolButton();
+        toolButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                inkView.cycleTool();
+                updateToolButton();
+            }
+        });
+        toolbar.addView(toolButton, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         root.addView(toolbar, new LinearLayout.LayoutParams(
@@ -87,5 +104,9 @@ public final class MainActivity extends Activity {
 
     private void updateBatchButton() {
         batchButton.setText("Batch " + inkView.renderBatchSize());
+    }
+
+    private void updateToolButton() {
+        toolButton.setText("Tool " + inkView.toolLabel());
     }
 }

@@ -14,7 +14,7 @@
 
 - Validate dirty-rect batching defaults against WiNote behavior on-device.
 - [x] Decide whether dirty rect padding belongs in the library config, the app renderer, or both.
-- Add sample renderers for full-segment drawing and optional smoothing.
+- [x] Add sample renderers for full-segment drawing and multiple pen styles.
 - [x] Document that dirty rects returned by renderers must be in local view coordinates.
 - [x] Add guardrails for offscreen/empty dirty rects and unusual native event sequences.
 
