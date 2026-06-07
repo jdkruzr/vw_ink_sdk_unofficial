@@ -111,17 +111,23 @@ final class ViwoodsHiddenEnote {
         invokeQuiet("releaseWritingJavaBackgroundBitmap");
     }
 
-    long render(Rect screenRect) {
-        if (!ensureSetting() || screenRect == null || screenRect.isEmpty()) {
-            return -1L;
+    ViwoodsInkRenderResult render(Rect screenRect) {
+        if (screenRect == null || screenRect.isEmpty()) {
+            return ViwoodsInkRenderResult.skippedEmptyRect(screenRect);
+        }
+        if (!ensureSetting()) {
+            return ViwoodsInkRenderResult.failed(screenRect, -1L, "ENoteSetting was not found");
         }
         long start = SystemClock.elapsedRealtimeNanos();
         try {
             invoke("renderWriting", screenRect);
+            return ViwoodsInkRenderResult.rendered(screenRect,
+                    SystemClock.elapsedRealtimeNanos() - start);
         } catch (Throwable t) {
             logger.log("renderWriting failed: " + t);
+            return ViwoodsInkRenderResult.failed(screenRect,
+                    SystemClock.elapsedRealtimeNanos() - start, String.valueOf(t));
         }
-        return SystemClock.elapsedRealtimeNanos() - start;
     }
 
     private boolean ensureSetting() {

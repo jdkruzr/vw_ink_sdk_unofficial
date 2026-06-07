@@ -7,10 +7,10 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
-import android.view.MotionEvent;
 import android.view.View;
 
 import io.github.vwunofficial.ink.ViwoodsBitmapProvider;
+import io.github.vwunofficial.ink.ViwoodsInkAction;
 import io.github.vwunofficial.ink.ViwoodsInkConfig;
 import io.github.vwunofficial.ink.ViwoodsInkController;
 import io.github.vwunofficial.ink.ViwoodsInkEvent;
@@ -78,14 +78,14 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
             return null;
         }
         penPaint.setStrokeWidth(3.5f * Math.max(0.75f, Math.min(1.8f, event.pressure + 0.35f)));
-        if (event.action == MotionEvent.ACTION_DOWN) {
+        if (event.actionType == ViwoodsInkAction.DOWN) {
             strokeActive = true;
             path.reset();
             path.moveTo(event.x, event.y);
             lastX = event.x;
             lastY = event.y;
             setDirty(event.x, event.y, event.x, event.y);
-        } else if (event.action == MotionEvent.ACTION_MOVE) {
+        } else if (event.actionType == ViwoodsInkAction.MOVE) {
             if (!strokeActive) {
                 strokeActive = true;
                 path.reset();
@@ -102,7 +102,7 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
                 lastX = event.x;
                 lastY = event.y;
             }
-        } else if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+        } else if (event.isUpOrCancel()) {
             if (strokeActive) {
                 path.reset();
                 path.moveTo(lastX, lastY);

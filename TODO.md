@@ -2,11 +2,11 @@
 
 ## API Hardening
 
-- Define a stable normalized action model instead of exposing Android/Viwoods raw action values as the primary API.
-- Document the renderer thread contract. Current callbacks are delivered on the view/UI thread.
+- [x] Define a stable normalized action model instead of exposing Android/Viwoods raw action values as the primary API.
+- [x] Document the renderer thread contract. Current callbacks are delivered on the view/UI thread.
 - Decide whether to support an advanced direct-callback-thread mode for lower latency.
-- Add explicit stroke lifecycle hooks for advanced integrations that need to observe start/end separately from draw events.
-- Add richer runtime error reporting for render failures after startup.
+- [x] Add explicit stroke lifecycle hooks for advanced integrations that need to observe start/end separately from draw events.
+- [x] Add richer runtime error reporting for render failures after startup.
 - Define how apps should handle bitmap replacement, page changes, view movement, and orientation changes.
 - Add Kotlin convenience wrappers once the Java API stabilizes.
 

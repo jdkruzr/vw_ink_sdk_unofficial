@@ -19,6 +19,7 @@ Known current shape:
 - The sample app targets SDK 30.
 - The library is Java-only for now, but is directly usable from Kotlin.
 - Hidden Viwoods APIs are accessed by reflection.
+- Renderer callbacks are currently delivered on the associated view's UI thread.
 - No Viwoods proprietary classes, APK code, or native libraries are bundled.
 
 ## Modules
@@ -42,7 +43,14 @@ ViwoodsInkController controller = new ViwoodsInkController(
         new ViwoodsInkRenderer() {
             @Override
             public Rect onInkEvent(ViwoodsInkEvent event) {
-                // Draw event into inkBitmap and return the local dirty rect.
+                if (event.actionType == ViwoodsInkAction.DOWN) {
+                    // Start app stroke state.
+                } else if (event.actionType == ViwoodsInkAction.MOVE) {
+                    // Draw into inkBitmap.
+                } else if (event.isUpOrCancel()) {
+                    // Finish app stroke state.
+                }
+                // Return the changed area in local view coordinates.
                 return dirtyRect;
             }
         });
@@ -65,6 +73,30 @@ val controller = ViwoodsInkController(
 )
 ```
 
+Advanced integrations can observe stroke boundaries and render failures through `ViwoodsInkConfig`:
+
+```java
+ViwoodsInkConfig config = ViwoodsInkConfig.builder()
+        .renderBatchSize(2)
+        .listener(new ViwoodsInkListener() {
+            @Override
+            public void onStrokeStart(ViwoodsInkEvent event) {
+                // Optional: synchronize app stroke state with Viwoods writing mode.
+            }
+
+            @Override
+            public void onStrokeEnd(ViwoodsInkEvent event) {
+                // Optional: flush app-side stroke state.
+            }
+
+            @Override
+            public void onRenderFailure(ViwoodsInkRenderResult result) {
+                Log.w("Ink", result.status + ": " + result.detail);
+            }
+        })
+        .build();
+```
+
 Recommended lifecycle:
 
 ```java
@@ -77,6 +109,8 @@ controller.refreshBitmap();
 // in onPause/onDestroyView
 controller.stop();
 ```
+
+`ViwoodsInkEvent.actionType` is the stable action API. `action` and `rawAction` are kept for diagnostics and Android interop; app code should prefer `actionType`, `isDown()`, `isMove()`, and `isUpOrCancel()`.
 
 ## Proven Fast Path
 

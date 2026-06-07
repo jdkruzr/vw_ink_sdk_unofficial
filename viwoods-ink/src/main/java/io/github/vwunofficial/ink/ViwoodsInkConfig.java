@@ -5,12 +5,14 @@ public final class ViwoodsInkConfig {
     public final int jumpPointCount;
     public final int renderDelayCount;
     public final boolean invalidateView;
+    public final ViwoodsInkListener listener;
 
     private ViwoodsInkConfig(Builder builder) {
         this.renderBatchSize = builder.renderBatchSize;
         this.jumpPointCount = builder.jumpPointCount;
         this.renderDelayCount = builder.renderDelayCount;
         this.invalidateView = builder.invalidateView;
+        this.listener = builder.listener == null ? ViwoodsInkListener.NONE : builder.listener;
     }
 
     public static Builder builder() {
@@ -26,6 +28,7 @@ public final class ViwoodsInkConfig {
         private int jumpPointCount = 1;
         private int renderDelayCount = 0;
         private boolean invalidateView = true;
+        private ViwoodsInkListener listener = ViwoodsInkListener.NONE;
 
         public Builder renderBatchSize(int renderBatchSize) {
             this.renderBatchSize = Math.max(1, renderBatchSize);
@@ -44,6 +47,11 @@ public final class ViwoodsInkConfig {
 
         public Builder invalidateView(boolean invalidateView) {
             this.invalidateView = invalidateView;
+            return this;
+        }
+
+        public Builder listener(ViwoodsInkListener listener) {
+            this.listener = listener == null ? ViwoodsInkListener.NONE : listener;
             return this;
         }
 

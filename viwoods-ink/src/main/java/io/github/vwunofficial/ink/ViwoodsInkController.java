@@ -17,6 +17,7 @@ public final class ViwoodsInkController {
     private boolean running;
     private boolean strokeActive;
     private int batchedRects;
+    private ViwoodsInkRenderResult lastRenderResult;
 
     public ViwoodsInkController(View view, ViwoodsBitmapProvider bitmapProvider,
                                 ViwoodsInkRenderer renderer) {
@@ -114,6 +115,10 @@ public final class ViwoodsInkController {
         return running ? ViwoodsInkState.RUNNING : ViwoodsInkState.STOPPED;
     }
 
+    public ViwoodsInkRenderResult lastRenderResult() {
+        return lastRenderResult;
+    }
+
     public boolean refreshBitmap() {
         if (!running) {
             return false;
@@ -156,6 +161,7 @@ public final class ViwoodsInkController {
         ViwoodsInkEvent event = new ViwoodsInkEvent(
                 rawX - screenOffset[0],
                 rawY - screenOffset[1],
+                ViwoodsInkAction.fromAndroidAction(action),
                 action,
                 rawAction,
                 pressureValue,
@@ -175,6 +181,7 @@ public final class ViwoodsInkController {
             if (isUsableBitmap(bitmap)) {
                 enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
             }
+            notifyStrokeStart(event);
         }
 
         Rect dirty = renderer.onInkEvent(event);
@@ -189,6 +196,7 @@ public final class ViwoodsInkController {
             flushDirty();
             enote.onWritingEnd();
             strokeActive = false;
+            notifyStrokeEnd(event);
         }
     }
 
@@ -212,7 +220,7 @@ public final class ViwoodsInkController {
         }
         batchedRects++;
         if (force || batchedRects >= config.renderBatchSize) {
-            enote.render(batchRect);
+            renderBatch();
             batchRect.setEmpty();
             batchedRects = 0;
         }
@@ -220,9 +228,37 @@ public final class ViwoodsInkController {
 
     private void flushDirty() {
         if (!batchRect.isEmpty()) {
-            enote.render(batchRect);
+            renderBatch();
             batchRect.setEmpty();
             batchedRects = 0;
+        }
+    }
+
+    private void renderBatch() {
+        lastRenderResult = enote.render(batchRect);
+        if (lastRenderResult != null && lastRenderResult.status == ViwoodsInkRenderResult.Status.FAILED) {
+            notifyRenderFailure(lastRenderResult);
+        }
+    }
+
+    private void notifyStrokeStart(ViwoodsInkEvent event) {
+        try {
+            config.listener.onStrokeStart(event);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void notifyStrokeEnd(ViwoodsInkEvent event) {
+        try {
+            config.listener.onStrokeEnd(event);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void notifyRenderFailure(ViwoodsInkRenderResult result) {
+        try {
+            config.listener.onRenderFailure(result);
+        } catch (Throwable ignored) {
         }
     }
 
