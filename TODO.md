@@ -13,10 +13,10 @@
 ## Rendering Behavior
 
 - Validate dirty-rect batching defaults against WiNote behavior on-device.
-- Decide whether dirty rect padding belongs in the library config, the app renderer, or both.
+- [x] Decide whether dirty rect padding belongs in the library config, the app renderer, or both.
 - Add sample renderers for full-segment drawing and optional smoothing.
-- Document that dirty rects returned by renderers must be in local view coordinates.
-- Add guardrails for offscreen/empty dirty rects and unusual native event sequences.
+- [x] Document that dirty rects returned by renderers must be in local view coordinates.
+- [x] Add guardrails for offscreen/empty dirty rects and unusual native event sequences.
 
 ## Device Validation
 
@@ -37,7 +37,7 @@
 
 ## Sample App
 
-- Add a small debug/status overlay with availability, start result, event count, render count, and last failure.
+- [x] Add a small debug/status overlay with availability, start result, event count, render count, and last failure.
 - Add clear/reset controls.
 - Add a toggle for render batch size.
 - Add a simple APK install/copy workflow for the Viwoods device.

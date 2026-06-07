@@ -10,6 +10,9 @@ public interface ViwoodsInkListener {
     default void onStrokeEnd(ViwoodsInkEvent event) {
     }
 
+    default void onRenderResult(ViwoodsInkRenderResult result) {
+    }
+
     default void onRenderFailure(ViwoodsInkRenderResult result) {
     }
 }

@@ -11,6 +11,7 @@ public final class ViwoodsInkController {
     private final ViwoodsInkRenderer renderer;
     private final ViwoodsInkConfig config;
     private final ViwoodsHiddenEnote enote;
+    private final Rect localRenderRect = new Rect();
     private final Rect screenRect = new Rect();
     private final Rect batchRect = new Rect();
     private final int[] screenOffset = new int[2];
@@ -186,9 +187,9 @@ public final class ViwoodsInkController {
 
         Rect dirty = renderer.onInkEvent(event);
         if (dirty != null && !dirty.isEmpty()) {
-            renderDirty(dirty, event.isUpOrCancel());
+            Rect renderedLocalDirty = renderDirty(dirty, event.isUpOrCancel());
             if (config.invalidateView) {
-                view.invalidate(dirty);
+                view.invalidate(renderedLocalDirty);
             }
         }
 
@@ -207,11 +208,18 @@ public final class ViwoodsInkController {
         return rawAction;
     }
 
-    private void renderDirty(Rect localDirty, boolean force) {
-        screenRect.set(localDirty);
+    private Rect renderDirty(Rect localDirty, boolean force) {
+        localRenderRect.set(localDirty);
+        if (config.dirtyRectPaddingPx > 0) {
+            localRenderRect.inset(-config.dirtyRectPaddingPx, -config.dirtyRectPaddingPx);
+        }
+        if (config.clipDirtyRectsToView && !localRenderRect.intersect(0, 0, view.getWidth(), view.getHeight())) {
+            return localRenderRect;
+        }
+        screenRect.set(localRenderRect);
         screenRect.offset(screenOffset[0], screenOffset[1]);
         if (screenRect.isEmpty()) {
-            return;
+            return localRenderRect;
         }
         if (batchRect.isEmpty()) {
             batchRect.set(screenRect);
@@ -224,6 +232,7 @@ public final class ViwoodsInkController {
             batchRect.setEmpty();
             batchedRects = 0;
         }
+        return localRenderRect;
     }
 
     private void flushDirty() {
@@ -236,8 +245,11 @@ public final class ViwoodsInkController {
 
     private void renderBatch() {
         lastRenderResult = enote.render(batchRect);
-        if (lastRenderResult != null && lastRenderResult.status == ViwoodsInkRenderResult.Status.FAILED) {
-            notifyRenderFailure(lastRenderResult);
+        if (lastRenderResult != null) {
+            notifyRenderResult(lastRenderResult);
+            if (lastRenderResult.status == ViwoodsInkRenderResult.Status.FAILED) {
+                notifyRenderFailure(lastRenderResult);
+            }
         }
     }
 
@@ -251,6 +263,13 @@ public final class ViwoodsInkController {
     private void notifyStrokeEnd(ViwoodsInkEvent event) {
         try {
             config.listener.onStrokeEnd(event);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void notifyRenderResult(ViwoodsInkRenderResult result) {
+        try {
+            config.listener.onRenderResult(result);
         } catch (Throwable ignored) {
         }
     }

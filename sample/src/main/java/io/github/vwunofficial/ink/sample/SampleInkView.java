@@ -14,12 +14,14 @@ import io.github.vwunofficial.ink.ViwoodsInkAction;
 import io.github.vwunofficial.ink.ViwoodsInkConfig;
 import io.github.vwunofficial.ink.ViwoodsInkController;
 import io.github.vwunofficial.ink.ViwoodsInkEvent;
+import io.github.vwunofficial.ink.ViwoodsInkListener;
 import io.github.vwunofficial.ink.ViwoodsInkLogger;
+import io.github.vwunofficial.ink.ViwoodsInkRenderResult;
 import io.github.vwunofficial.ink.ViwoodsInkRenderer;
 import io.github.vwunofficial.ink.ViwoodsInkStartResult;
 
 final class SampleInkView extends View implements ViwoodsBitmapProvider, ViwoodsInkRenderer {
-    private static final int DIRTY_PAD = 12;
+    private static final int DIRTY_PAD_PX = 12;
 
     private final Paint bitmapPaint = new Paint(Paint.DITHER_FLAG);
     private final Paint penPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -33,6 +35,12 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
     private float lastX;
     private float lastY;
     private String status = "starting";
+    private int eventCount;
+    private int strokeCount;
+    private int renderCount;
+    private int renderFailureCount;
+    private long lastRenderNanos = -1L;
+    private String lastRenderRect = "";
 
     SampleInkView(Context context) {
         super(context);
@@ -48,7 +56,28 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
                 this,
                 this,
                 this,
-                ViwoodsInkConfig.defaults(),
+                ViwoodsInkConfig.builder()
+                        .dirtyRectPaddingPx(DIRTY_PAD_PX)
+                        .listener(new ViwoodsInkListener() {
+                            @Override
+                            public void onStrokeStart(ViwoodsInkEvent event) {
+                                strokeCount++;
+                            }
+
+                            @Override
+                            public void onRenderResult(ViwoodsInkRenderResult result) {
+                                renderCount++;
+                                lastRenderNanos = result.elapsedNanos;
+                                lastRenderRect = result.screenRect.toShortString();
+                            }
+
+                            @Override
+                            public void onRenderFailure(ViwoodsInkRenderResult result) {
+                                renderFailureCount++;
+                                status = "render failed: " + result.detail;
+                            }
+                        })
+                        .build(),
                 new ViwoodsInkLogger() {
                     @Override
                     public void log(String message) {
@@ -77,6 +106,7 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
         if (bitmapCanvas == null) {
             return null;
         }
+        eventCount++;
         penPaint.setStrokeWidth(3.5f * Math.max(0.75f, Math.min(1.8f, event.pressure + 0.35f)));
         if (event.actionType == ViwoodsInkAction.DOWN) {
             strokeActive = true;
@@ -137,18 +167,44 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
         if (bitmap != null) {
             canvas.drawBitmap(bitmap, 0, 0, bitmapPaint);
         }
-        canvas.drawText(status, 24, 48, textPaint);
+        drawOverlay(canvas);
     }
 
     private void setDirty(float x1, float y1, float x2, float y2) {
-        int left = Math.max(0, (int) Math.floor(Math.min(x1, x2)) - DIRTY_PAD);
-        int top = Math.max(0, (int) Math.floor(Math.min(y1, y2)) - DIRTY_PAD);
-        int right = Math.min(getWidth(), (int) Math.ceil(Math.max(x1, x2)) + DIRTY_PAD);
-        int bottom = Math.min(getHeight(), (int) Math.ceil(Math.max(y1, y2)) + DIRTY_PAD);
+        int left = Math.max(0, (int) Math.floor(Math.min(x1, x2)));
+        int top = Math.max(0, (int) Math.floor(Math.min(y1, y2)));
+        int right = Math.min(getWidth(), (int) Math.ceil(Math.max(x1, x2)));
+        int bottom = Math.min(getHeight(), (int) Math.ceil(Math.max(y1, y2)));
+        if (right == left && right < getWidth()) {
+            right++;
+        }
+        if (bottom == top && bottom < getHeight()) {
+            bottom++;
+        }
         if (right <= left || bottom <= top) {
             dirty.setEmpty();
         } else {
             dirty.set(left, top, right, bottom);
         }
+    }
+
+    private void drawOverlay(Canvas canvas) {
+        float x = 24f;
+        float y = 48f;
+        float lineHeight = 34f;
+        canvas.drawText(status, x, y, textPaint);
+        y += lineHeight;
+        canvas.drawText("events " + eventCount + " strokes " + strokeCount
+                + " renders " + renderCount + " failures " + renderFailureCount, x, y, textPaint);
+        y += lineHeight;
+        canvas.drawText("batch 2 pad " + DIRTY_PAD_PX + " last "
+                + formatMillis(lastRenderNanos) + " " + lastRenderRect, x, y, textPaint);
+    }
+
+    private static String formatMillis(long nanos) {
+        if (nanos < 0L) {
+            return "-";
+        }
+        return String.format(java.util.Locale.US, "%.3fms", nanos / 1_000_000.0);
     }
 }

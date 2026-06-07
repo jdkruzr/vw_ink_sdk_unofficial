@@ -78,6 +78,8 @@ Advanced integrations can observe stroke boundaries and render failures through 
 ```java
 ViwoodsInkConfig config = ViwoodsInkConfig.builder()
         .renderBatchSize(2)
+        .dirtyRectPaddingPx(12)
+        .clipDirtyRectsToView(true)
         .listener(new ViwoodsInkListener() {
             @Override
             public void onStrokeStart(ViwoodsInkEvent event) {
@@ -96,6 +98,10 @@ ViwoodsInkConfig config = ViwoodsInkConfig.builder()
         })
         .build();
 ```
+
+Renderers should return the precise local area they changed. The controller can
+then add a configured padding margin, clip to the view bounds, batch dirty rects,
+and convert the result to screen coordinates for `renderWriting(...)`.
 
 Recommended lifecycle:
 
@@ -122,7 +128,7 @@ The working sequence is:
 4. On stroke start, call `onWritingStart()` and refresh the foreground Java bitmap.
 5. Treat native `ACTION_HOVER_MOVE` (`7`) with pressure as in-stroke move data.
 6. Draw immediately into the shared bitmap.
-7. Send screen-coordinate dirty rects to `renderWriting(...)`.
+7. Pad, clip, batch, and send screen-coordinate dirty rects to `renderWriting(...)`.
 8. On up/cancel, flush dirty rects and call `onWritingEnd()`.
 
 ## Build

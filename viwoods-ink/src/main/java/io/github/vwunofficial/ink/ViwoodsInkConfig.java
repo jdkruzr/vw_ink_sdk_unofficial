@@ -4,6 +4,8 @@ public final class ViwoodsInkConfig {
     public final int renderBatchSize;
     public final int jumpPointCount;
     public final int renderDelayCount;
+    public final int dirtyRectPaddingPx;
+    public final boolean clipDirtyRectsToView;
     public final boolean invalidateView;
     public final ViwoodsInkListener listener;
 
@@ -11,6 +13,8 @@ public final class ViwoodsInkConfig {
         this.renderBatchSize = builder.renderBatchSize;
         this.jumpPointCount = builder.jumpPointCount;
         this.renderDelayCount = builder.renderDelayCount;
+        this.dirtyRectPaddingPx = builder.dirtyRectPaddingPx;
+        this.clipDirtyRectsToView = builder.clipDirtyRectsToView;
         this.invalidateView = builder.invalidateView;
         this.listener = builder.listener == null ? ViwoodsInkListener.NONE : builder.listener;
     }
@@ -27,6 +31,8 @@ public final class ViwoodsInkConfig {
         private int renderBatchSize = 2;
         private int jumpPointCount = 1;
         private int renderDelayCount = 0;
+        private int dirtyRectPaddingPx = 0;
+        private boolean clipDirtyRectsToView = true;
         private boolean invalidateView = true;
         private ViwoodsInkListener listener = ViwoodsInkListener.NONE;
 
@@ -42,6 +48,16 @@ public final class ViwoodsInkConfig {
 
         public Builder renderDelayCount(int renderDelayCount) {
             this.renderDelayCount = Math.max(0, renderDelayCount);
+            return this;
+        }
+
+        public Builder dirtyRectPaddingPx(int dirtyRectPaddingPx) {
+            this.dirtyRectPaddingPx = Math.max(0, dirtyRectPaddingPx);
+            return this;
+        }
+
+        public Builder clipDirtyRectsToView(boolean clipDirtyRectsToView) {
+            this.clipDirtyRectsToView = clipDirtyRectsToView;
             return this;
         }
 
