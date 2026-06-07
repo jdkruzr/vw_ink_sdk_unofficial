@@ -120,6 +120,28 @@ public final class ViwoodsInkController {
         return lastRenderResult;
     }
 
+    public ViwoodsInkRenderResult renderNow(Rect localDirty) {
+        if (!running) {
+            return ViwoodsInkRenderResult.failed(localDirty, -1L, "Controller is not running");
+        }
+        if (localDirty == null || localDirty.isEmpty()) {
+            lastRenderResult = ViwoodsInkRenderResult.skippedEmptyRect(localDirty);
+            notifyRenderResult(lastRenderResult);
+            return lastRenderResult;
+        }
+        batchRect.setEmpty();
+        batchedRects = 0;
+        if (!prepareScreenRect(localDirty)) {
+            lastRenderResult = ViwoodsInkRenderResult.skippedEmptyRect(localRenderRect);
+            notifyRenderResult(lastRenderResult);
+            return lastRenderResult;
+        }
+        batchRect.set(screenRect);
+        renderBatch();
+        batchRect.setEmpty();
+        return lastRenderResult;
+    }
+
     public boolean refreshBitmap() {
         if (!running) {
             return false;
@@ -209,16 +231,7 @@ public final class ViwoodsInkController {
     }
 
     private Rect renderDirty(Rect localDirty, boolean force) {
-        localRenderRect.set(localDirty);
-        if (config.dirtyRectPaddingPx > 0) {
-            localRenderRect.inset(-config.dirtyRectPaddingPx, -config.dirtyRectPaddingPx);
-        }
-        if (config.clipDirtyRectsToView && !localRenderRect.intersect(0, 0, view.getWidth(), view.getHeight())) {
-            return localRenderRect;
-        }
-        screenRect.set(localRenderRect);
-        screenRect.offset(screenOffset[0], screenOffset[1]);
-        if (screenRect.isEmpty()) {
+        if (!prepareScreenRect(localDirty)) {
             return localRenderRect;
         }
         if (batchRect.isEmpty()) {
@@ -233,6 +246,19 @@ public final class ViwoodsInkController {
             batchedRects = 0;
         }
         return localRenderRect;
+    }
+
+    private boolean prepareScreenRect(Rect localDirty) {
+        localRenderRect.set(localDirty);
+        if (config.dirtyRectPaddingPx > 0) {
+            localRenderRect.inset(-config.dirtyRectPaddingPx, -config.dirtyRectPaddingPx);
+        }
+        if (config.clipDirtyRectsToView && !localRenderRect.intersect(0, 0, view.getWidth(), view.getHeight())) {
+            return false;
+        }
+        screenRect.set(localRenderRect);
+        screenRect.offset(screenOffset[0], screenOffset[1]);
+        return !screenRect.isEmpty();
     }
 
     private void flushDirty() {

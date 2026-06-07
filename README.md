@@ -112,6 +112,9 @@ controller.startWithResult();
 // when the backing bitmap is replaced or resized
 controller.refreshBitmap();
 
+// when the app changes a known bitmap region outside the pen event path
+controller.renderNow(localDirtyRect);
+
 // in onPause/onDestroyView
 controller.stop();
 ```
@@ -138,3 +141,6 @@ The working sequence is:
 ```
 
 The sample APK will be under `sample/build/outputs/apk/debug/`.
+
+The sample includes controls for clearing the bitmap, resetting overlay counters,
+and cycling render batch size between 1, 2, and 4.

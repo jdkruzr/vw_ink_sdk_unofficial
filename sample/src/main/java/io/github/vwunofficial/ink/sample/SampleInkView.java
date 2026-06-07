@@ -28,10 +28,13 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final Rect dirty = new Rect();
-    private final ViwoodsInkController controller;
+    private final Rect fullViewRect = new Rect();
+    private ViwoodsInkController controller;
     private Bitmap bitmap;
     private Canvas bitmapCanvas;
     private boolean strokeActive;
+    private boolean inkStarted;
+    private int renderBatchSize = 2;
     private float lastX;
     private float lastY;
     private String status = "starting";
@@ -52,11 +55,77 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
         penPaint.setStrokeJoin(Paint.Join.ROUND);
         textPaint.setColor(Color.rgb(32, 32, 32));
         textPaint.setTextSize(30f);
-        controller = new ViwoodsInkController(
+        controller = createController();
+    }
+
+    void startViwoodsInk() {
+        ViwoodsInkStartResult result = controller.startWithResult();
+        inkStarted = controller.isRunning();
+        status = result.started ? "Viwoods fast ink active" : result.status + ": " + result.detail;
+        invalidate();
+    }
+
+    void stopViwoodsInk() {
+        controller.stop();
+        inkStarted = false;
+    }
+
+    void clearInk() {
+        if (bitmapCanvas != null) {
+            bitmapCanvas.drawColor(Color.WHITE);
+        }
+        strokeActive = false;
+        path.reset();
+        fullViewRect.set(0, 0, getWidth(), getHeight());
+        if (controller.isRunning() && !fullViewRect.isEmpty()) {
+            controller.renderNow(fullViewRect);
+        }
+        invalidate();
+    }
+
+    void resetStats() {
+        eventCount = 0;
+        strokeCount = 0;
+        renderCount = 0;
+        renderFailureCount = 0;
+        lastRenderNanos = -1L;
+        lastRenderRect = "";
+        status = controller.isRunning() ? "Viwoods fast ink active" : "stopped";
+        invalidate();
+    }
+
+    int cycleBatchSize() {
+        if (renderBatchSize == 1) {
+            renderBatchSize = 2;
+        } else if (renderBatchSize == 2) {
+            renderBatchSize = 4;
+        } else {
+            renderBatchSize = 1;
+        }
+        boolean restart = controller.isRunning() || inkStarted;
+        controller.stop();
+        inkStarted = false;
+        controller = createController();
+        if (restart) {
+            startViwoodsInk();
+        } else {
+            status = "batch " + renderBatchSize;
+            invalidate();
+        }
+        return renderBatchSize;
+    }
+
+    int renderBatchSize() {
+        return renderBatchSize;
+    }
+
+    private ViwoodsInkController createController() {
+        return new ViwoodsInkController(
                 this,
                 this,
                 this,
                 ViwoodsInkConfig.builder()
+                        .renderBatchSize(renderBatchSize)
                         .dirtyRectPaddingPx(DIRTY_PAD_PX)
                         .listener(new ViwoodsInkListener() {
                             @Override
@@ -84,16 +153,6 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
                         android.util.Log.i("ViwoodsInkSample", message);
                     }
                 });
-    }
-
-    void startViwoodsInk() {
-        ViwoodsInkStartResult result = controller.startWithResult();
-        status = result.started ? "Viwoods fast ink active" : result.status + ": " + result.detail;
-        invalidate();
-    }
-
-    void stopViwoodsInk() {
-        controller.stop();
     }
 
     @Override
@@ -197,7 +256,7 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
         canvas.drawText("events " + eventCount + " strokes " + strokeCount
                 + " renders " + renderCount + " failures " + renderFailureCount, x, y, textPaint);
         y += lineHeight;
-        canvas.drawText("batch 2 pad " + DIRTY_PAD_PX + " last "
+        canvas.drawText("batch " + renderBatchSize + " pad " + DIRTY_PAD_PX + " last "
                 + formatMillis(lastRenderNanos) + " " + lastRenderRect, x, y, textPaint);
     }
 

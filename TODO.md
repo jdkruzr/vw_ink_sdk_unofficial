@@ -38,8 +38,8 @@
 ## Sample App
 
 - [x] Add a small debug/status overlay with availability, start result, event count, render count, and last failure.
-- Add clear/reset controls.
-- Add a toggle for render batch size.
+- [x] Add clear/reset controls.
+- [x] Add a toggle for render batch size.
 - Add a simple APK install/copy workflow for the Viwoods device.
 
 ## Publishing
