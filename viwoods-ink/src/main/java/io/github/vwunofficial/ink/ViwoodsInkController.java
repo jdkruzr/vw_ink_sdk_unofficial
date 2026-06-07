@@ -56,31 +56,27 @@ public final class ViwoodsInkController {
         return startWithResult().started;
     }
 
-    public ViwoodsInkStartResult startWithResult() {
-        if (running) {
-            return ViwoodsInkStartResult.alreadyRunning();
+    public ViwoodsInkStartResult startDisplayOnlyWithResult() {
+        ViwoodsInkStartResult result = configureForStart();
+        if (!result.started) {
+            return result;
         }
-        ViwoodsInkAvailability availability = availability();
-        if (!availability.available) {
-            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.UNAVAILABLE,
-                    availability.detail);
-        }
-        if (view.getWidth() <= 0 || view.getHeight() <= 0) {
-            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.VIEW_NOT_READY,
-                    "View has no measured size");
-        }
-        updateScreenOffset();
-        Bitmap bitmap = bitmapProvider.getInkBitmap();
-        if (!isUsableBitmap(bitmap)) {
-            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.BITMAP_UNAVAILABLE,
-                    "Bitmap provider returned null or recycled bitmap");
-        }
-        boolean configured = enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
-                config.jumpPointCount, config.renderDelayCount);
-        if (!configured) {
+        boolean ok = enote.setWritingEnabled(true);
+        if (!ok) {
+            enote.release();
+            running = false;
             return ViwoodsInkStartResult.failed(
-                    ViwoodsInkStartResult.Status.BITMAP_CONFIGURATION_FAILED,
-                    "Failed to configure Viwoods Java bitmap");
+                    ViwoodsInkStartResult.Status.WRITING_ENABLE_FAILED,
+                    "Failed to enable Viwoods writing");
+        }
+        running = true;
+        return ViwoodsInkStartResult.started("Viwoods display-only ink started");
+    }
+
+    public ViwoodsInkStartResult startWithResult() {
+        ViwoodsInkStartResult result = configureForStart();
+        if (!result.started) {
+            return result;
         }
         boolean ok = enote.setInputSink(new ViwoodsHiddenEnote.NativeInputSink() {
             @Override
@@ -106,6 +102,35 @@ public final class ViwoodsInkController {
         return ViwoodsInkStartResult.failed(
                 ViwoodsInkStartResult.Status.LISTENER_REGISTRATION_FAILED,
                 "Failed to register Viwoods native input listener");
+    }
+
+    private ViwoodsInkStartResult configureForStart() {
+        if (running) {
+            return ViwoodsInkStartResult.alreadyRunning();
+        }
+        ViwoodsInkAvailability availability = availability();
+        if (!availability.available) {
+            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.UNAVAILABLE,
+                    availability.detail);
+        }
+        if (view.getWidth() <= 0 || view.getHeight() <= 0) {
+            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.VIEW_NOT_READY,
+                    "View has no measured size");
+        }
+        updateScreenOffset();
+        Bitmap bitmap = bitmapProvider.getInkBitmap();
+        if (!isUsableBitmap(bitmap)) {
+            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.BITMAP_UNAVAILABLE,
+                    "Bitmap provider returned null or recycled bitmap");
+        }
+        boolean configured = enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
+                config.jumpPointCount, config.renderDelayCount);
+        if (!configured) {
+            return ViwoodsInkStartResult.failed(
+                    ViwoodsInkStartResult.Status.BITMAP_CONFIGURATION_FAILED,
+                    "Failed to configure Viwoods Java bitmap");
+        }
+        return ViwoodsInkStartResult.started("Viwoods ink configured");
     }
 
     public boolean isRunning() {
@@ -142,6 +167,38 @@ public final class ViwoodsInkController {
         return lastRenderResult;
     }
 
+    public boolean beginStroke() {
+        if (!running) {
+            return false;
+        }
+        strokeActive = true;
+        batchedRects = 0;
+        batchRect.setEmpty();
+        boolean ok = enote.onWritingStart();
+        Bitmap bitmap = bitmapProvider.getInkBitmap();
+        if (isUsableBitmap(bitmap)) {
+            updateScreenOffset();
+            ok &= enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+        }
+        return ok;
+    }
+
+    public boolean endStroke() {
+        if (!running) {
+            return false;
+        }
+        flushDirty();
+        strokeActive = false;
+        return enote.onWritingEnd();
+    }
+
+    public boolean setDisplayMode(ViwoodsEinkMode mode) {
+        if (mode == null) {
+            return false;
+        }
+        return enote.setPictureMode(mode.value);
+    }
+
     public boolean refreshBitmap() {
         if (!running) {
             return false;
@@ -153,6 +210,30 @@ public final class ViwoodsInkController {
         }
         return enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
                 config.jumpPointCount, config.renderDelayCount);
+    }
+
+    public boolean refreshWritingBitmap() {
+        if (!running) {
+            return false;
+        }
+        updateScreenOffset();
+        Bitmap bitmap = bitmapProvider.getInkBitmap();
+        if (!isUsableBitmap(bitmap)) {
+            return false;
+        }
+        return enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+    }
+
+    public boolean refreshBackgroundBitmap() {
+        if (!running) {
+            return false;
+        }
+        updateScreenOffset();
+        Bitmap bitmap = bitmapProvider.getInkBitmap();
+        if (!isUsableBitmap(bitmap)) {
+            return false;
+        }
+        return enote.configureBackgroundBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
     }
 
     public void stop() {

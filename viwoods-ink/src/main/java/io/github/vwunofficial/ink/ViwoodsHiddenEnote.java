@@ -89,8 +89,19 @@ final class ViwoodsHiddenEnote {
         return invokeQuiet("setWritingJavaBitmap", bitmap, orientation, left, top);
     }
 
+    boolean configureBackgroundBitmap(Bitmap bitmap, int orientation, int left, int top) {
+        if (!ensureSetting() || bitmap == null) {
+            return false;
+        }
+        return invokeQuiet("setWritingJavaBackgroundBitmap", bitmap, orientation, left, top);
+    }
+
     boolean setWritingEnabled(boolean enabled) {
         return invokeQuiet("setWritingEnabled", enabled);
+    }
+
+    boolean setPictureMode(int mode) {
+        return invokeQuiet("setPictureMode", mode);
     }
 
     boolean onWritingStart() {

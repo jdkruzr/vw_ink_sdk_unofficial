@@ -8,6 +8,7 @@ public final class ViwoodsInkStartResult {
         VIEW_NOT_READY,
         BITMAP_UNAVAILABLE,
         BITMAP_CONFIGURATION_FAILED,
+        WRITING_ENABLE_FAILED,
         LISTENER_REGISTRATION_FAILED
     }
 
