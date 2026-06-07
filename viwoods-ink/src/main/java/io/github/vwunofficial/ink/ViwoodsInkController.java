@@ -51,17 +51,35 @@ public final class ViwoodsInkController {
     }
 
     public boolean start() {
+        return startWithResult().started;
+    }
+
+    public ViwoodsInkStartResult startWithResult() {
         if (running) {
-            return true;
+            return ViwoodsInkStartResult.alreadyRunning();
         }
         ViwoodsInkAvailability availability = availability();
         if (!availability.available) {
-            return false;
+            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.UNAVAILABLE,
+                    availability.detail);
+        }
+        if (view.getWidth() <= 0 || view.getHeight() <= 0) {
+            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.VIEW_NOT_READY,
+                    "View has no measured size");
         }
         updateScreenOffset();
         Bitmap bitmap = bitmapProvider.getInkBitmap();
-        enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
+        if (!isUsableBitmap(bitmap)) {
+            return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.BITMAP_UNAVAILABLE,
+                    "Bitmap provider returned null or recycled bitmap");
+        }
+        boolean configured = enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
                 config.jumpPointCount, config.renderDelayCount);
+        if (!configured) {
+            return ViwoodsInkStartResult.failed(
+                    ViwoodsInkStartResult.Status.BITMAP_CONFIGURATION_FAILED,
+                    "Failed to configure Viwoods Java bitmap");
+        }
         boolean ok = enote.setInputSink(new ViwoodsHiddenEnote.NativeInputSink() {
             @Override
             public void onNativeInput(final int x, final int y, final int pressureValue,
@@ -80,21 +98,32 @@ public final class ViwoodsInkController {
         if (ok) {
             enote.setWritingEnabled(true);
             running = true;
+            return ViwoodsInkStartResult.started("Viwoods ink started");
         }
-        return ok;
+        enote.release();
+        return ViwoodsInkStartResult.failed(
+                ViwoodsInkStartResult.Status.LISTENER_REGISTRATION_FAILED,
+                "Failed to register Viwoods native input listener");
     }
 
     public boolean isRunning() {
         return running;
     }
 
-    public void refreshBitmap() {
+    public ViwoodsInkState state() {
+        return running ? ViwoodsInkState.RUNNING : ViwoodsInkState.STOPPED;
+    }
+
+    public boolean refreshBitmap() {
         if (!running) {
-            return;
+            return false;
         }
         updateScreenOffset();
         Bitmap bitmap = bitmapProvider.getInkBitmap();
-        enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
+        if (!isUsableBitmap(bitmap)) {
+            return false;
+        }
+        return enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
                 config.jumpPointCount, config.renderDelayCount);
     }
 
@@ -104,6 +133,10 @@ public final class ViwoodsInkController {
         batchedRects = 0;
         batchRect.setEmpty();
         enote.release();
+    }
+
+    public void detach() {
+        stop();
     }
 
     private void handleNativeInput(int rawX, int rawY, int pressureValue, float tilt, int toolType,
@@ -138,8 +171,10 @@ public final class ViwoodsInkController {
             batchedRects = 0;
             batchRect.setEmpty();
             enote.onWritingStart();
-            enote.configureWritingBitmap(bitmapProvider.getInkBitmap(), orientation(),
-                    screenOffset[0], screenOffset[1]);
+            Bitmap bitmap = bitmapProvider.getInkBitmap();
+            if (isUsableBitmap(bitmap)) {
+                enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+            }
         }
 
         Rect dirty = renderer.onInkEvent(event);
@@ -197,5 +232,9 @@ public final class ViwoodsInkController {
 
     private int orientation() {
         return view.getResources().getConfiguration().orientation;
+    }
+
+    private static boolean isUsableBitmap(Bitmap bitmap) {
+        return bitmap != null && !bitmap.isRecycled();
     }
 }

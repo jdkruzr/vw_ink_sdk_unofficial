@@ -16,6 +16,7 @@ import io.github.vwunofficial.ink.ViwoodsInkController;
 import io.github.vwunofficial.ink.ViwoodsInkEvent;
 import io.github.vwunofficial.ink.ViwoodsInkLogger;
 import io.github.vwunofficial.ink.ViwoodsInkRenderer;
+import io.github.vwunofficial.ink.ViwoodsInkStartResult;
 
 final class SampleInkView extends View implements ViwoodsBitmapProvider, ViwoodsInkRenderer {
     private static final int DIRTY_PAD = 12;
@@ -57,8 +58,8 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
     }
 
     void startViwoodsInk() {
-        boolean started = controller.start();
-        status = started ? "Viwoods fast ink active" : "Viwoods fast ink unavailable";
+        ViwoodsInkStartResult result = controller.startWithResult();
+        status = result.started ? "Viwoods fast ink active" : result.status + ": " + result.detail;
         invalidate();
     }
 

@@ -47,7 +47,10 @@ ViwoodsInkController controller = new ViwoodsInkController(
             }
         });
 
-controller.start();
+ViwoodsInkStartResult result = controller.startWithResult();
+if (!result.started) {
+    Log.w("Ink", result.status + ": " + result.detail);
+}
 ```
 
 Kotlin can consume the same API normally:
@@ -60,6 +63,19 @@ val controller = ViwoodsInkController(
         drawStrokeEvent(event)
     }
 )
+```
+
+Recommended lifecycle:
+
+```java
+// after the view has a measured size and the bitmap exists
+controller.startWithResult();
+
+// when the backing bitmap is replaced or resized
+controller.refreshBitmap();
+
+// in onPause/onDestroyView
+controller.stop();
 ```
 
 ## Proven Fast Path

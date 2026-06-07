@@ -33,9 +33,11 @@ final class ViwoodsHiddenEnote {
 
     ViwoodsInkAvailability availability() {
         if (ensureSetting()) {
-            return new ViwoodsInkAvailability(true, settingClass.getName());
+            return new ViwoodsInkAvailability(true, ViwoodsInkAvailability.Status.AVAILABLE,
+                    settingClass.getName());
         }
-        return new ViwoodsInkAvailability(false, "ENoteSetting was not found");
+        return new ViwoodsInkAvailability(false, ViwoodsInkAvailability.Status.ENOTE_SETTING_NOT_FOUND,
+                "ENoteSetting was not found");
     }
 
     boolean setInputSink(final NativeInputSink sink) {
@@ -67,35 +69,38 @@ final class ViwoodsHiddenEnote {
         }
     }
 
-    void configureBitmap(Bitmap bitmap, int orientation, int left, int top,
-                         int jumpPointCount, int renderDelayCount) {
+    boolean configureBitmap(Bitmap bitmap, int orientation, int left, int top,
+                            int jumpPointCount, int renderDelayCount) {
         if (!ensureSetting() || bitmap == null) {
-            return;
+            return false;
         }
-        invokeQuiet("setWritingJavaBitmap", bitmap, orientation, left, top);
-        invokeQuiet("setWritingJavaBackgroundBitmap", bitmap, orientation, left, top);
-        invokeQuiet("setWritingInputJumpPointCount", jumpPointCount);
-        invokeQuiet("setRenderWritingDelayCount", renderDelayCount);
+        boolean ok = true;
+        ok &= invokeQuiet("setWritingJavaBitmap", bitmap, orientation, left, top);
+        ok &= invokeQuiet("setWritingJavaBackgroundBitmap", bitmap, orientation, left, top);
+        ok &= invokeQuiet("setWritingInputJumpPointCount", jumpPointCount);
+        ok &= invokeQuiet("setRenderWritingDelayCount", renderDelayCount);
+        return ok;
     }
 
-    void configureWritingBitmap(Bitmap bitmap, int orientation, int left, int top) {
+    boolean configureWritingBitmap(Bitmap bitmap, int orientation, int left, int top) {
         if (!ensureSetting() || bitmap == null) {
-            return;
+            return false;
         }
-        invokeQuiet("setWritingJavaBitmap", bitmap, orientation, left, top);
+        return invokeQuiet("setWritingJavaBitmap", bitmap, orientation, left, top);
     }
 
-    void setWritingEnabled(boolean enabled) {
-        invokeQuiet("setWritingEnabled", enabled);
+    boolean setWritingEnabled(boolean enabled) {
+        return invokeQuiet("setWritingEnabled", enabled);
     }
 
-    void onWritingStart() {
-        invokeQuiet("onWritingStart");
-        invokeQuiet("setWritingEnabled", true);
+    boolean onWritingStart() {
+        boolean ok = invokeQuiet("onWritingStart");
+        ok &= invokeQuiet("setWritingEnabled", true);
+        return ok;
     }
 
-    void onWritingEnd() {
-        invokeQuiet("onWritingEnd");
+    boolean onWritingEnd() {
+        return invokeQuiet("onWritingEnd");
     }
 
     void release() {
@@ -147,11 +152,13 @@ final class ViwoodsHiddenEnote {
         return method.invoke(setting, args);
     }
 
-    private void invokeQuiet(String name, Object... args) {
+    private boolean invokeQuiet(String name, Object... args) {
         try {
             invoke(name, args);
+            return true;
         } catch (Throwable t) {
             logger.log(name + " failed: " + t);
+            return false;
         }
     }
 
