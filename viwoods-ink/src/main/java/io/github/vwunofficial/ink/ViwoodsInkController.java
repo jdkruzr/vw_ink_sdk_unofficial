@@ -16,6 +16,7 @@ public final class ViwoodsInkController {
     private final Rect batchRect = new Rect();
     private final int[] screenOffset = new int[2];
     private boolean running;
+    private boolean displayOnly;
     private boolean strokeActive;
     private int batchedRects;
     private ViwoodsInkRenderResult lastRenderResult;
@@ -70,6 +71,7 @@ public final class ViwoodsInkController {
                     "Failed to enable Viwoods writing");
         }
         running = true;
+        displayOnly = true;
         return ViwoodsInkStartResult.started("Viwoods display-only ink started");
     }
 
@@ -96,6 +98,7 @@ public final class ViwoodsInkController {
         if (ok) {
             enote.setWritingEnabled(true);
             running = true;
+            displayOnly = false;
             return ViwoodsInkStartResult.started("Viwoods ink started");
         }
         enote.release();
@@ -174,11 +177,14 @@ public final class ViwoodsInkController {
         strokeActive = true;
         batchedRects = 0;
         batchRect.setEmpty();
-        boolean ok = enote.onWritingStart();
+        boolean ok = true;
         Bitmap bitmap = bitmapProvider.getInkBitmap();
         if (isUsableBitmap(bitmap)) {
             updateScreenOffset();
             ok &= enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+        }
+        if (!displayOnly) {
+            ok &= enote.onWritingStart();
         }
         return ok;
     }
@@ -189,6 +195,9 @@ public final class ViwoodsInkController {
         }
         flushDirty();
         strokeActive = false;
+        if (displayOnly) {
+            return true;
+        }
         return enote.onWritingEnd();
     }
 
@@ -238,6 +247,7 @@ public final class ViwoodsInkController {
 
     public void stop() {
         running = false;
+        displayOnly = false;
         strokeActive = false;
         batchedRects = 0;
         batchRect.setEmpty();
