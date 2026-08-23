@@ -12,15 +12,32 @@ Use this as a best-effort compatibility layer, not as a vendor-supported API.
 
 ## Status
 
-Early proof of concept. The fast path has been validated on a Viwoods AiPaper Mini ROM where normal Android touch rendering is visibly slower than the native notes app.
+The direct callback path was validated on 2026-08-23 with a Viwoods AiPaper Mini running
+firmware 3.14.5 (`mp1V9`, Android 13) and WiNote 1.6.5. ForestNote uses it for native-class
+latency in an ordinary sideloaded `untrusted_app_30` process.
 
 Known current shape:
 
 - The sample app targets SDK 30.
 - The library is Java-only for now, but is directly usable from Kotlin.
 - Hidden Viwoods APIs are accessed by reflection.
-- Renderer callbacks are currently delivered on the associated view's UI thread.
+- Renderer callbacks use the associated view's UI thread by default. Advanced integrations can
+  opt into the lower-latency ENote worker thread with `directInputCallbacks(true)`; their renderer
+  and listeners must then be thread-safe and must not mutate Views.
 - No Viwoods proprietary classes, APK code, or native libraries are bundled.
+- The optional native preview registers a screen region with the ROM's MIPI auto-draw service;
+  it falls back cleanly when that hidden API is absent.
+
+### Root is not required
+
+The library does not invoke `su`, install a privileged helper, or require a system-app identity.
+The validated process ran under Android's ordinary `untrusted_app_30` SELinux domain. Root was
+useful while reverse engineering the ROM and installing builds on a device whose ADB/package
+shell is restricted, but it is not part of the runtime architecture. A normal APK sideload is
+enough on the validated firmware.
+
+These are still private, undocumented ROM APIs. A future Viwoods update can change or remove
+them, so applications should keep a normal Android-input fallback.
 
 ## Modules
 
@@ -99,6 +116,21 @@ ViwoodsInkConfig config = ViwoodsInkConfig.builder()
         .build();
 ```
 
+For the lowest latency, deliver events directly on ENote's worker thread:
+
+```java
+ViwoodsInkConfig config = ViwoodsInkConfig.builder()
+        .directInputCallbacks(true)
+        .invalidateView(false)
+        .renderBatchSize(2)
+        .build();
+```
+
+In this mode the bitmap provider, renderer, and listener callbacks must be thread-safe and must
+not read or mutate Android Views. The controller captures view geometry during UI-thread lifecycle
+calls and freezes that origin for each stroke. If the view moves, call `refreshBitmap()` from the
+UI thread before accepting more input.
+
 Renderers should return the precise local area they changed. The controller can
 then add a configured padding margin, clip to the view bounds, batch dirty rects,
 and convert the result to screen coordinates for `renderWriting(...)`.
@@ -119,7 +151,23 @@ controller.renderNow(localDirtyRect);
 controller.stop();
 ```
 
-`ViwoodsInkEvent.actionType` is the stable action API. `action` and `rawAction` are kept for diagnostics and Android interop; app code should prefer `actionType`, `isDown()`, `isMove()`, and `isUpOrCancel()`.
+For firmware-latency black pen preview while the app continues to receive normal Android input,
+register the drawable local-view region after startup. Tool type `2` is pen (`4` is eraser) and
+the width range is in panel pixels:
+
+```java
+controller.enableNativePreview(new Rect(0, 0, view.getWidth(), view.getHeight()), 2, 2, 8);
+// Before covering the editor, switching to an incompatible tool, or stopping:
+controller.disableNativePreview();
+```
+
+The ROM tracks regions by calling PID. Always remove the region when the editor is obscured;
+`stop()` also removes it defensively.
+
+`ViwoodsInkEvent.actionType` is the stable action API. `action` and `rawAction` are kept for
+diagnostics and Android interop; app code should prefer `actionType`, `isDown()`, `isMove()`, and
+`isUpOrCancel()`. `rawX`/`rawY` are the absolute ENote coordinates;
+`screenOffsetX`/`screenOffsetY` record the frozen origin used to produce local `x`/`y`.
 
 ## Proven Fast Path
 
@@ -133,6 +181,9 @@ The working sequence is:
 6. Draw immediately into the shared bitmap.
 7. Pad, clip, batch, and send screen-coordinate dirty rects to `renderWriting(...)`.
 8. On up/cancel, flush dirty rects and call `onWritingEnd()`.
+
+ForestNote's integration notes and failure-mode analysis are in
+[`docs/research/viwoods-native-ink-2026-08.md`](https://github.com/jdkruzr/ForestNote/blob/main/docs/research/viwoods-native-ink-2026-08.md).
 
 ## Build
 

@@ -104,6 +104,43 @@ final class ViwoodsHiddenEnote {
         return invokeQuiet("setPictureMode", mode);
     }
 
+    /**
+     * Enable Viwoods' system-server auto-draw path for one screen-space region.
+     *
+     * This is distinct from renderWriting(): system_server receives the digitizer stream and
+     * sends it straight to the panel's MIPI handwriting path. The ROM tracks rectangles by the
+     * calling PID, so removing the exact rectangle (or process death) releases our registration.
+     */
+    boolean enableNativePreview(Rect screenRect, int toolType, int minWidth, int maxWidth) {
+        if (screenRect == null || screenRect.isEmpty()) {
+            return false;
+        }
+        boolean ok = true;
+        // mp1V9 currently stores this flag without consulting it, but call it for compatibility
+        // with ROM versions where the flag may become meaningful.
+        ok &= invokeQuiet("setT1000AutoDrawEnabled", true);
+        ok &= invokeQuiet("setAutoDrawToolType", toolType);
+        ok &= invokeQuiet("setAutoDrawPenWidthRange", minWidth, maxWidth);
+        ok &= invokeQuiet("addAutoDrawRect", screenRect);
+        return ok;
+    }
+
+    boolean updateNativePreviewStyle(int toolType, int minWidth, int maxWidth) {
+        boolean ok = true;
+        ok &= invokeQuiet("setAutoDrawToolType", toolType);
+        ok &= invokeQuiet("setAutoDrawPenWidthRange", minWidth, maxWidth);
+        return ok;
+    }
+
+    boolean disableNativePreview(Rect screenRect) {
+        if (screenRect == null || screenRect.isEmpty()) {
+            return true;
+        }
+        boolean ok = invokeQuiet("removeAutoDrawRect", screenRect);
+        ok &= invokeQuiet("setT1000AutoDrawEnabled", false);
+        return ok;
+    }
+
     boolean onWritingStart() {
         boolean ok = invokeQuiet("onWritingStart");
         ok &= invokeQuiet("setWritingEnabled", true);

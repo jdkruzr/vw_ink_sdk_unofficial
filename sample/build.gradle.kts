@@ -8,11 +8,11 @@ android {
     buildToolsVersion = "36.0.0"
 
     defaultConfig {
-        applicationId = "io.github.vwunofficial.ink.sample"
+        applicationId = "io.github.vwunofficial.ink.sample.direct"
         minSdk = 26
         targetSdk = 30
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     compileOptions {

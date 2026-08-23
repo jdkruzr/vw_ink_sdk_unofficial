@@ -14,7 +14,13 @@ public final class ViwoodsInkController {
     private final Rect localRenderRect = new Rect();
     private final Rect screenRect = new Rect();
     private final Rect batchRect = new Rect();
-    private final int[] screenOffset = new int[2];
+    private final Rect nativePreviewRect = new Rect();
+    // View geometry is captured only by public calls made on the UI thread. ENote invokes direct
+    // input on its HandlerThread, where querying View geometry is both unsupported and racy.
+    private volatile int screenOffsetX;
+    private volatile int screenOffsetY;
+    private int strokeScreenOffsetX;
+    private int strokeScreenOffsetY;
     private boolean running;
     private boolean displayOnly;
     private boolean strokeActive;
@@ -86,6 +92,11 @@ public final class ViwoodsInkController {
                                       final float tilt, final int toolType, final int action,
                                       final int actionButton, final int buttonState,
                                       final long callbackNanos) {
+                if (config.directInputCallbacks) {
+                    handleNativeInput(x, y, pressureValue, tilt, toolType, action,
+                            actionButton, buttonState, callbackNanos);
+                    return;
+                }
                 view.post(new Runnable() {
                     @Override
                     public void run() {
@@ -126,7 +137,7 @@ public final class ViwoodsInkController {
             return ViwoodsInkStartResult.failed(ViwoodsInkStartResult.Status.BITMAP_UNAVAILABLE,
                     "Bitmap provider returned null or recycled bitmap");
         }
-        boolean configured = enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
+        boolean configured = enote.configureBitmap(bitmap, orientation(), screenOffsetX, screenOffsetY,
                 config.jumpPointCount, config.renderDelayCount);
         if (!configured) {
             return ViwoodsInkStartResult.failed(
@@ -181,7 +192,7 @@ public final class ViwoodsInkController {
         Bitmap bitmap = bitmapProvider.getInkBitmap();
         if (isUsableBitmap(bitmap)) {
             updateScreenOffset();
-            ok &= enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+            ok &= enote.configureWritingBitmap(bitmap, orientation(), screenOffsetX, screenOffsetY);
         }
         if (!displayOnly) {
             ok &= enote.onWritingStart();
@@ -217,7 +228,7 @@ public final class ViwoodsInkController {
         if (!isUsableBitmap(bitmap)) {
             return false;
         }
-        return enote.configureBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1],
+        return enote.configureBitmap(bitmap, orientation(), screenOffsetX, screenOffsetY,
                 config.jumpPointCount, config.renderDelayCount);
     }
 
@@ -230,7 +241,7 @@ public final class ViwoodsInkController {
         if (!isUsableBitmap(bitmap)) {
             return false;
         }
-        return enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+        return enote.configureWritingBitmap(bitmap, orientation(), screenOffsetX, screenOffsetY);
     }
 
     public boolean refreshBackgroundBitmap() {
@@ -242,10 +253,53 @@ public final class ViwoodsInkController {
         if (!isUsableBitmap(bitmap)) {
             return false;
         }
-        return enote.configureBackgroundBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+        return enote.configureBackgroundBitmap(bitmap, orientation(), screenOffsetX, screenOffsetY);
+    }
+
+    /**
+     * Register a local-view rectangle with Viwoods' firmware-native MIPI ink preview.
+     * Tool type 2 is pen and 4 is eraser on the currently known ROMs. Widths are panel pixels.
+     */
+    public boolean enableNativePreview(Rect localRect, int toolType, int minWidth, int maxWidth) {
+        if (localRect == null || localRect.isEmpty()) {
+            return false;
+        }
+        updateScreenOffset();
+        localRenderRect.set(localRect);
+        if (config.clipDirtyRectsToView
+                && !localRenderRect.intersect(0, 0, view.getWidth(), view.getHeight())) {
+            return false;
+        }
+        screenRect.set(localRenderRect);
+        screenRect.offset(screenOffsetX, screenOffsetY);
+        int safeMin = Math.max(1, Math.min(minWidth, maxWidth));
+        int safeMax = Math.max(safeMin, Math.max(minWidth, maxWidth));
+        if (nativePreviewRect.equals(screenRect)) {
+            return enote.updateNativePreviewStyle(toolType, safeMin, safeMax);
+        }
+        disableNativePreview();
+        if (!enote.enableNativePreview(screenRect, toolType, safeMin, safeMax)) {
+            return false;
+        }
+        nativePreviewRect.set(screenRect);
+        return true;
+    }
+
+    public boolean disableNativePreview() {
+        if (nativePreviewRect.isEmpty()) {
+            return true;
+        }
+        Rect registered = new Rect(nativePreviewRect);
+        nativePreviewRect.setEmpty();
+        return enote.disableNativePreview(registered);
+    }
+
+    public boolean isNativePreviewEnabled() {
+        return !nativePreviewRect.isEmpty();
     }
 
     public void stop() {
+        disableNativePreview();
         running = false;
         displayOnly = false;
         strokeActive = false;
@@ -271,10 +325,26 @@ public final class ViwoodsInkController {
             return;
         }
 
-        updateScreenOffset();
+        // Freeze one UI-thread-captured origin for the entire gesture. Besides keeping model and
+        // panel coordinates consistent, this avoids calling View.getLocationOnScreen() from the
+        // ENote worker thread in direct-input mode.
+        if (action == MotionEvent.ACTION_DOWN) {
+            strokeScreenOffsetX = screenOffsetX;
+            strokeScreenOffsetY = screenOffsetY;
+        }
+        int inputOffsetX = strokeActive ? strokeScreenOffsetX : screenOffsetX;
+        int inputOffsetY = strokeActive ? strokeScreenOffsetY : screenOffsetY;
+        if (action == MotionEvent.ACTION_DOWN) {
+            inputOffsetX = strokeScreenOffsetX;
+            inputOffsetY = strokeScreenOffsetY;
+        }
         ViwoodsInkEvent event = new ViwoodsInkEvent(
-                rawX - screenOffset[0],
-                rawY - screenOffset[1],
+                rawX,
+                rawY,
+                inputOffsetX,
+                inputOffsetY,
+                rawX - inputOffsetX,
+                rawY - inputOffsetY,
                 ViwoodsInkAction.fromAndroidAction(action),
                 action,
                 rawAction,
@@ -293,7 +363,7 @@ public final class ViwoodsInkController {
             enote.onWritingStart();
             Bitmap bitmap = bitmapProvider.getInkBitmap();
             if (isUsableBitmap(bitmap)) {
-                enote.configureWritingBitmap(bitmap, orientation(), screenOffset[0], screenOffset[1]);
+                enote.configureWritingBitmap(bitmap, orientation(), inputOffsetX, inputOffsetY);
             }
             notifyStrokeStart(event);
         }
@@ -348,7 +418,9 @@ public final class ViwoodsInkController {
             return false;
         }
         screenRect.set(localRenderRect);
-        screenRect.offset(screenOffset[0], screenOffset[1]);
+        int offsetX = strokeActive ? strokeScreenOffsetX : screenOffsetX;
+        int offsetY = strokeActive ? strokeScreenOffsetY : screenOffsetY;
+        screenRect.offset(offsetX, offsetY);
         return !screenRect.isEmpty();
     }
 
@@ -399,7 +471,10 @@ public final class ViwoodsInkController {
     }
 
     private void updateScreenOffset() {
-        view.getLocationOnScreen(screenOffset);
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        screenOffsetX = location[0];
+        screenOffsetY = location[1];
     }
 
     private int orientation() {

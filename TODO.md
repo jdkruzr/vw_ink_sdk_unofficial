@@ -4,10 +4,10 @@
 
 - [x] Define a stable normalized action model instead of exposing Android/Viwoods raw action values as the primary API.
 - [x] Document the renderer thread contract. Current callbacks are delivered on the view/UI thread.
-- Decide whether to support an advanced direct-callback-thread mode for lower latency.
+- [x] Support an opt-in direct-callback-thread mode for lower latency.
 - [x] Add explicit stroke lifecycle hooks for advanced integrations that need to observe start/end separately from draw events.
 - [x] Add richer runtime error reporting for render failures after startup.
-- Define how apps should handle bitmap replacement, page changes, view movement, and orientation changes.
+- [x] Define how apps should handle bitmap replacement, page changes, view movement, and orientation changes.
 - Add Kotlin convenience wrappers once the Java API stabilizes.
 
 ## Rendering Behavior
@@ -20,34 +20,35 @@
 
 ## Device Validation
 
-- Test the sample APK on the current AiPaper Mini ROM.
-- Record device model, firmware version, target SDK, and result in a compatibility table.
+- [x] Test the sample APK on the current AiPaper Mini ROM (3.14.5 / mp1V9, 2026-08-23).
+- [x] Validate the system-server MIPI native-preview path and its cleanup on the current AiPaper Mini ROM.
+- [x] Record device model, firmware version, target SDK, and result in README.
 - Test target SDK 31 and newer again with the extracted library.
 - Check behavior after sleep/wake, app switch, rotation/config changes, and repeated start/stop cycles.
 - Verify no lingering ENote listener or writing state remains after `stop()`/`detach()`.
 
 ## ForestNote Integration
 
-- Add the library to ForestNote as a local module or included build.
-- Implement a Viwoods fast-ink backend behind a feature flag/fallback path.
-- Map ForestNote stroke tools and pressure handling to `ViwoodsInkRenderer`.
-- Ensure page/canvas bitmap lifecycle calls `refreshBitmap()` at the right times.
-- Keep the existing ForestNote Viwoods path as fallback until the new path is validated.
-- Test latency, fast strokes, eraser/tool switching, page changes, and app pause/resume on-device.
+- [x] Add the library to ForestNote as a local module or included build.
+- [x] Implement a Viwoods fast-ink backend behind a feature flag/fallback path.
+- [x] Map ForestNote stroke tools and pressure handling to `ViwoodsInkRenderer`.
+- [x] Ensure page/canvas bitmap lifecycle calls `refreshBitmap()` at the right times.
+- [x] Keep the existing ForestNote Viwoods path as fallback.
+- [x] Test latency, fast strokes, eraser/tool switching, page changes, popups, screenshots, and app pause/resume on-device.
 
 ## Sample App
 
 - [x] Add a small debug/status overlay with availability, start result, event count, render count, and last failure.
 - [x] Add clear/reset controls.
 - [x] Add a toggle for render batch size.
-- Add a simple APK install/copy workflow for the Viwoods device.
+- Add a simple APK install/copy workflow for the Viwoods device (device shell restrictions vary).
 
 ## Publishing
 
 - Choose Maven coordinates and package name policy.
 - Add a license.
-- Add CHANGELOG.
+- [x] Add CHANGELOG.
 - Add contribution guidelines.
 - Add compatibility/support policy.
 - Decide when to make the GitHub repo public.
-- Prepare an initial release tag only after ForestNote integration validates the library API.
+- [x] Prepare a post-integration release tag after ForestNote validates the direct API (`v0.2.0`).

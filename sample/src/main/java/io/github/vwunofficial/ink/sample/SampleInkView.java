@@ -144,6 +144,8 @@ final class SampleInkView extends View implements ViwoodsBitmapProvider, Viwoods
                 ViwoodsInkConfig.builder()
                         .renderBatchSize(renderBatchSize)
                         .dirtyRectPaddingPx(DIRTY_PAD_PX)
+                        .directInputCallbacks(true)
+                        .invalidateView(false)
                         .listener(new ViwoodsInkListener() {
                             @Override
                             public void onStrokeStart(ViwoodsInkEvent event) {

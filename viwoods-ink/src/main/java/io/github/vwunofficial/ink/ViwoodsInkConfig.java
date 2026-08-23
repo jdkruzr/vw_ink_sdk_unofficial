@@ -7,6 +7,7 @@ public final class ViwoodsInkConfig {
     public final int dirtyRectPaddingPx;
     public final boolean clipDirtyRectsToView;
     public final boolean invalidateView;
+    public final boolean directInputCallbacks;
     public final ViwoodsInkListener listener;
 
     private ViwoodsInkConfig(Builder builder) {
@@ -16,6 +17,7 @@ public final class ViwoodsInkConfig {
         this.dirtyRectPaddingPx = builder.dirtyRectPaddingPx;
         this.clipDirtyRectsToView = builder.clipDirtyRectsToView;
         this.invalidateView = builder.invalidateView;
+        this.directInputCallbacks = builder.directInputCallbacks;
         this.listener = builder.listener == null ? ViwoodsInkListener.NONE : builder.listener;
     }
 
@@ -34,6 +36,7 @@ public final class ViwoodsInkConfig {
         private int dirtyRectPaddingPx = 0;
         private boolean clipDirtyRectsToView = true;
         private boolean invalidateView = true;
+        private boolean directInputCallbacks;
         private ViwoodsInkListener listener = ViwoodsInkListener.NONE;
 
         public Builder renderBatchSize(int renderBatchSize) {
@@ -63,6 +66,15 @@ public final class ViwoodsInkConfig {
 
         public Builder invalidateView(boolean invalidateView) {
             this.invalidateView = invalidateView;
+            return this;
+        }
+
+        /**
+         * Deliver ENote input on Viwoods' callback thread instead of hopping through View.post().
+         * The renderer and listeners must then be thread-safe and must not mutate Android Views.
+         */
+        public Builder directInputCallbacks(boolean directInputCallbacks) {
+            this.directInputCallbacks = directInputCallbacks;
             return this;
         }
 
